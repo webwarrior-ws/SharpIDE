@@ -31,6 +31,7 @@ public partial class SharpIdeCodeEdit : CodeEdit
 	public SharpIdeSolutionModel? Solution { get; set; }
 	public SharpIdeFile SharpIdeFile => _currentFile;
 	private SharpIdeFile _currentFile = null!;
+	private bool IsEditingFSHarpFile => _currentFile != null && _currentFile.Extension == ".fs";
 
 	private CustomHighlighter _syntaxHighlighter = new();
 	private PopupMenu _popupMenu = null!;
@@ -365,11 +366,7 @@ public partial class SharpIdeCodeEdit : CodeEdit
 					await this.InvokeAsync(() => SetProjectDiagnostics(projectDiagnosticsForFile));
 				}, configureAwait: false);
 		}
-
-		var syntaxHighlighting = _roslynAnalysis.GetDocumentSyntaxHighlighting(_currentFile);
-		var razorSyntaxHighlighting = _roslynAnalysis.GetRazorDocumentSyntaxHighlighting(_currentFile);
-		var diagnostics = _roslynAnalysis.GetDocumentDiagnostics(_currentFile);
-		var analyzerDiagnostics = _roslynAnalysis.GetDocumentAnalyzerDiagnostics(_currentFile);
+		
 		await readFileTask;
 		var setTextTask = this.InvokeAsync(async () =>
 		{
@@ -380,15 +377,32 @@ public partial class SharpIdeCodeEdit : CodeEdit
 			if (fileLinePosition is not null) SetFileLinePosition(fileLinePosition.Value);
 			if (file.IsMetadataAsSourceFile) Editable = false;
 		});
-		_ = Task.GodotRun(async () =>
+
+		if (IsEditingFSHarpFile)
 		{
-			await Task.WhenAll(syntaxHighlighting, razorSyntaxHighlighting, setTextTask); // Text must be set before setting syntax highlighting
-			await this.InvokeAsync(async () => SetSyntaxHighlightingModel(await syntaxHighlighting, await razorSyntaxHighlighting));
-			await diagnostics;
-			await this.InvokeAsync(async () => SetDiagnostics(await diagnostics));
-			await analyzerDiagnostics;
-			await this.InvokeAsync(async () => SetAnalyzerDiagnostics(await analyzerDiagnostics));
-		});
+			_ = Task.GodotRun(async () =>
+			{
+				await setTextTask;
+				var source = this.Text.ToString();
+				// TODO: parse source and get highlighting info
+			});
+		}
+		else
+		{
+			var syntaxHighlighting = _roslynAnalysis.GetDocumentSyntaxHighlighting(_currentFile);
+			var razorSyntaxHighlighting = _roslynAnalysis.GetRazorDocumentSyntaxHighlighting(_currentFile);
+			var diagnostics = _roslynAnalysis.GetDocumentDiagnostics(_currentFile);
+			var analyzerDiagnostics = _roslynAnalysis.GetDocumentAnalyzerDiagnostics(_currentFile);
+			_ = Task.GodotRun(async () =>
+			{
+				await Task.WhenAll(syntaxHighlighting, razorSyntaxHighlighting, setTextTask); // Text must be set before setting syntax highlighting
+				await this.InvokeAsync(async () => SetSyntaxHighlightingModel(await syntaxHighlighting, await razorSyntaxHighlighting));
+				await diagnostics;
+				await this.InvokeAsync(async () => SetDiagnostics(await diagnostics));
+				await analyzerDiagnostics;
+				await this.InvokeAsync(async () => SetAnalyzerDiagnostics(await analyzerDiagnostics));
+			});
+		}
 	}
 
 	private async Task OnFileDeleted()
@@ -677,6 +691,11 @@ public partial class SharpIdeCodeEdit : CodeEdit
 	[RequiresGodotUiThread]
 	private void SetSyntaxHighlightingModel(ImmutableArray<SharpIdeClassifiedSpan> classifiedSpans, ImmutableArray<SharpIdeRazorClassifiedSpan> razorClassifiedSpans)
 	{
+		if (IsEditingFSHarpFile)
+		{
+			// TODO: re-apply highlighting?
+			return;
+		}
 		_syntaxHighlighter.SetHighlightingData(classifiedSpans, razorClassifiedSpans);
 		//_syntaxHighlighter.ClearHighlightingCache();
 		_syntaxHighlighter.UpdateCache(); // I don't think this does anything, it will call _UpdateCache which we have not implemented
