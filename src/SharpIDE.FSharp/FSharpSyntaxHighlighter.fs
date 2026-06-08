@@ -1,9 +1,28 @@
 namespace SharpIDE.FSharp
 
-type FSharpSyntaxHighlighter() =
-    member public this.Source
-        with set(newValue: string) = ()
+open FSharp.Compiler.Tokenization
 
-    member self.GetLineSyntaxHighlighting(line: int) =
-        
-        failwith "Not yet implemented"
+type FSharpSyntaxHighlighter() =
+    let sourceTok = FSharpSourceTokenizer([], Some "<source>", None, None)
+    let mutable sourceLines: array<string> = [||]
+
+    member public this.Source
+        with set(newValue: string) =
+            sourceLines <- newValue.Split System.Environment.NewLine
+
+    member self.GetLineSyntaxHighlighting(line: int): seq<FSharpTokenInfo> =
+        if line < sourceLines.Length then
+            let tokenizer = sourceTok.CreateLineTokenizer sourceLines.[line]
+
+            let rec tokenizeLine (tokenizer: FSharpLineTokenizer) previousTokens state =
+                match tokenizer.ScanToken(state) with
+                | Some tok, state ->
+                    // Tokenize the rest, in the new state
+                    tok :: (tokenizeLine tokenizer previousTokens state)
+                | None, _state -> previousTokens
+
+            let tokens = tokenizeLine tokenizer List.Empty FSharpTokenizerLexState.Initial
+
+            tokens
+        else
+            Seq.empty

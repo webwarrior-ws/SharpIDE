@@ -272,6 +272,13 @@ public partial class SharpIdeCodeEdit : CodeEdit
 		var pendingCompletionTrigger = _pendingCompletionTrigger;
 		_pendingCompletionTrigger = null;
 		var cursorPosition = GetCaretPosition();
+
+		if (IsEditingFSHarpFile)
+		{
+			// Re-tokenize on next frame so Text is fully updated
+			Callable.From(() => (SyntaxHighlighter as FSharpSyntaxHighlighter)?.SetSource(text));
+		}
+
 		_ = Task.GodotRun(async () =>
 		{
 			var __ = SharpIdeOtel.Source.StartActivity($"{nameof(SharpIdeCodeEdit)}.{nameof(OnTextChanged)}");
