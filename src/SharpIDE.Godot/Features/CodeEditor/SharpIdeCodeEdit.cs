@@ -385,6 +385,7 @@ public partial class SharpIdeCodeEdit : CodeEdit
 				await setTextTask;
 				var source = this.Text.ToString();
 				// TODO: parse source and get highlighting info
+				SyntaxHighlighter = new FSharpSyntaxHighlighter(source);
 			});
 		}
 		else
