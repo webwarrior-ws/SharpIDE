@@ -387,13 +387,10 @@ public partial class SharpIdeCodeEdit : CodeEdit
 
 		if (IsEditingFSHarpFile)
 		{
-			_ = Task.GodotRun(async () =>
-			{
-				await setTextTask;
-				var source = this.Text.ToString();
-				// TODO: parse source and get highlighting info
-				SyntaxHighlighter = new FSharpSyntaxHighlighter(source);
-			});
+			await setTextTask;
+			var source = this.Text.ToString();
+			// TODO: parse source and get highlighting info
+			SyntaxHighlighter = new FSharpSyntaxHighlighter(source);
 		}
 		else
 		{

@@ -8,21 +8,18 @@ type FSharpSyntaxHighlighter() =
 
     member public this.Source
         with set(newValue: string) =
-            sourceLines <- newValue.Split System.Environment.NewLine
+            sourceLines <- newValue.Replace("\r\n", "\n").Split('\n')
 
     member self.GetLineSyntaxHighlighting(line: int): seq<FSharpTokenInfo> =
-        if line < sourceLines.Length then
-            let tokenizer = sourceTok.CreateLineTokenizer sourceLines.[line]
+        let tokenizer = sourceTok.CreateLineTokenizer sourceLines.[line]
 
-            let rec tokenizeLine (tokenizer: FSharpLineTokenizer) previousTokens state =
-                match tokenizer.ScanToken(state) with
-                | Some tok, state ->
-                    // Tokenize the rest, in the new state
-                    tok :: (tokenizeLine tokenizer previousTokens state)
-                | None, _state -> previousTokens
+        let rec tokenizeLine (tokenizer: FSharpLineTokenizer) previousTokens state =
+            match tokenizer.ScanToken(state) with
+            | Some tok, state ->
+                // Tokenize the rest, in the new state
+                tok :: (tokenizeLine tokenizer previousTokens state)
+            | None, _state -> previousTokens
 
-            let tokens = tokenizeLine tokenizer List.Empty FSharpTokenizerLexState.Initial
+        let tokens = tokenizeLine tokenizer List.Empty FSharpTokenizerLexState.Initial
 
-            tokens
-        else
-            Seq.empty
+        tokens
