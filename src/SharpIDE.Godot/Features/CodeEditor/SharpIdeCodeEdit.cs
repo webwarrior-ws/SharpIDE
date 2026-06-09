@@ -179,6 +179,12 @@ public partial class SharpIdeCodeEdit : CodeEdit
 	// Multi cursor gets a single line event for each
 	private void OnLinesEditedFrom(long fromLine, long toLine)
 	{
+		if (IsEditingFSHarpFile)
+		{
+			(SyntaxHighlighter as FSharpSyntaxHighlighter)?.SetSource(Text);
+			return;
+		}
+
 		if (fromLine == toLine) return;
 		if (_settingWholeDocumentTextSuppressLineEditsEvent) return;
 
@@ -275,8 +281,7 @@ public partial class SharpIdeCodeEdit : CodeEdit
 
 		if (IsEditingFSHarpFile)
 		{
-			// Re-tokenize on next frame so Text is fully updated
-			Callable.From(() => (SyntaxHighlighter as FSharpSyntaxHighlighter)?.SetSource(text));
+			(SyntaxHighlighter as FSharpSyntaxHighlighter)?.SetSource(text);
 		}
 
 		_ = Task.GodotRun(async () =>
@@ -389,7 +394,6 @@ public partial class SharpIdeCodeEdit : CodeEdit
 		{
 			await setTextTask;
 			var source = this.Text.ToString();
-			// TODO: parse source and get highlighting info
 			SyntaxHighlighter = new FSharpSyntaxHighlighter(source);
 		}
 		else
